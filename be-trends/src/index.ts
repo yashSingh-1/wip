@@ -5,6 +5,7 @@ import axios from "axios";
 import nlp from "compromise";
 import Parser from "rss-parser";
 import { pipeline } from "@xenova/transformers";
+import snoowrap from "snoowrap";
 
 // Load environment variables
 dotenv.config();
@@ -122,47 +123,105 @@ const categories: Record<string, string[]> = {
 //     return "Uncategorized"; // Default category
 // }
 
-async function categorizeHeadline(headline: string): Promise<string> {
-    // Dynamically import the ESM module
-    const { pipeline } = await import("@xenova/transformers");
+// async function categorizeHeadline(headline: string): Promise<string> {
+//     // Dynamically import the ESM module
+//     const { pipeline } = await import("@xenova/transformers");
 
-    // Load the model
-    const classifier = await pipeline("text-classification", "Xenova/bert-base-multilingual-uncased");
+//     // Load the model
+//     const classifier = await pipeline("text-classification", "Xenova/bert-base-multilingual-uncased");
 
-    // Get model predictions
-    const results = await classifier(headline);
+//     // Get model predictions
+//     const results = await classifier(headline);
 
-    return results[0].toString();
-}
+//     return results[0].toString();
+// }
 
-async function fetchNews() {
-  let allHeadlines: NewsItem[] = [];
+// async function fetchNews() {
+//   let allHeadlines: NewsItem[] = [];
 
-  for (const url of rssFeeds) {
-    try {
-      let feed = await parser.parseURL(url);
-    //   console.log("Feed here: ", feed)
-      feed.items.slice(0, 10).forEach(async (item) => {
-        const category = categorizeHeadline(item.content!)
-        allHeadlines.push({
-          title: item.title,
-          link: item.link,
-          source: feed.title,
-          description: item.content,
-          dateOfPost: item.pubDate,
-          category: item.categories ? item.categories[0] : category
-        });
-      });
-    } catch (error) {
-      console.error(`Error fetching ${url}:`, error);
-    }
-  }
+//   for (const url of rssFeeds) {
+//     try {
+//       let feed = await parser.parseURL(url);
+//     //   console.log("Feed here: ", feed)
+//       feed.items.slice(0, 10).forEach(async (item) => {
+//         const category = categorizeHeadline(item.content!)
+//         allHeadlines.push({
+//           title: item.title,
+//           link: item.link,
+//           source: feed.title,
+//           description: item.content,
+//           dateOfPost: item.pubDate,
+//           category: item.categories ? item.categories[0] : category
+//         });
+//       });
+//     } catch (error) {
+//       console.error(`Error fetching ${url}:`, error);
+//     }
+//   }
 
-  console.log(allHeadlines); // You can send this to your frontend
-}
+//   console.log(allHeadlines); // You can send this to your frontend
+// }
 
 // Run the function
-fetchNews();
+// fetchNews();
 
-// Start Server
+
+// Doing the reddit api to fetch news and stuff
+
+const reddit = new snoowrap({
+  userAgent: process.env.REDDIT_USER_AGENT!,
+  clientId: process.env.REDDIT_CLIENT_ID!,
+  clientSecret: process.env.REDDIT_CLIENT_SECRET!,
+  username: process.env.REDDIT_USERNAME!,
+  password: process.env.REDDIT_PASSWORD!
+});
+
+async function fetchRedditNews(subreddit: string, limit: number = 10) {
+  try {
+      const posts = await reddit.getSubreddit(subreddit).getTop({ time: "day", limit });
+      
+      return posts.map(post => ({
+          title: post.title,
+          description: post.selftext || "No description available",
+          url: post.url,
+          category: subreddit,  // Can be improved with NLP categorization
+          date: new Date(post.created_utc * 1000).toISOString(),
+          upvotes: post.ups
+      }));
+  } catch (error) {
+      console.error("Error fetching Reddit news:", error);
+      return [];
+  }
+}
+
+async function newsData(){
+  const newsSubredditRes = await fetchRedditNews("news");
+  const indiaNewsSubredditRes = await fetchRedditNews("indianews");
+  const anime_tittiesSubredditRes = await fetchRedditNews("anime_titties");
+  const worldnewsSubredditRes = await fetchRedditNews("worldnews");
+
+  console.log("News from Reddit r/news", newsSubredditRes)
+  console.log("News from Reddit r/indianews", indiaNewsSubredditRes)
+  console.log("News from Reddit r/anime_titties", anime_tittiesSubredditRes)
+  console.log("News from Reddit r/worldnews", worldnewsSubredditRes)
+}
+
+async function techNews(){
+  const technologySubredditRes = await fetchRedditNews("technology");
+  const artificialSubredditRes = await fetchRedditNews("artificial");
+  const startupsSubredditRes = await fetchRedditNews("startups");
+  const VCinvestingSubredditRes = await fetchRedditNews("VCinvesting");
+
+  console.log("News from Reddit r/technology", technologySubredditRes)
+  console.log("News from Reddit r/artificial", artificialSubredditRes)
+  console.log("News from Reddit r/startups", startupsSubredditRes)
+  console.log("News from Reddit r/VCinvesting", VCinvestingSubredditRes)
+
+
+
+}
+
+newsData();
+techNews();
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
