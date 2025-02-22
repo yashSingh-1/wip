@@ -17,6 +17,7 @@ const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const rss_parser_1 = __importDefault(require("rss-parser"));
 const snoowrap_1 = __importDefault(require("snoowrap"));
+const exa_js_1 = __importDefault(require("exa-js"));
 // Load environment variables
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -25,6 +26,7 @@ const PORT = 3001;
 app.use((0, cors_1.default)()); // Enable CORS
 app.use(express_1.default.json());
 const parser = new rss_parser_1.default();
+const exa = new exa_js_1.default(process.env.EXA_API_KEY);
 // List of RSS feeds
 const rssFeeds = [
     "http://rss.cnn.com/rss/edition.rss",
@@ -156,6 +158,7 @@ const reddit = new snoowrap_1.default({
     username: process.env.REDDIT_USERNAME,
     password: process.env.REDDIT_PASSWORD
 });
+const data = [];
 function fetchRedditNews(subreddit_1) {
     return __awaiter(this, arguments, void 0, function* (subreddit, limit = 10) {
         try {
@@ -181,6 +184,19 @@ function newsData() {
         const indiaNewsSubredditRes = yield fetchRedditNews("indianews");
         const anime_tittiesSubredditRes = yield fetchRedditNews("anime_titties");
         const worldnewsSubredditRes = yield fetchRedditNews("worldnews");
+        try {
+            const response = yield exa.searchAndContents(newsSubredditRes[0].title + " This is a news headline, curate it to add more information about the same headline containing all facts and then make it into a human readable format that anyone could read in only 200 words!", {
+                useAutoprompt: true,
+                startPublishedDate: "2025-01-25",
+                type: "auto",
+                text: true,
+                livecrawl: "always"
+            });
+            console.log("Here is the exa ai response: ", response.results);
+        }
+        catch (error) {
+            console.error("Error doing exa search:", error);
+        }
         console.log("News from Reddit r/news", newsSubredditRes);
         console.log("News from Reddit r/indianews", indiaNewsSubredditRes);
         console.log("News from Reddit r/anime_titties", anime_tittiesSubredditRes);

@@ -1,4 +1,4 @@
-import express, { Request, Response } from "express";
+import express, { query, Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import axios from "axios";
@@ -6,6 +6,7 @@ import nlp from "compromise";
 import Parser from "rss-parser";
 import { pipeline } from "@xenova/transformers";
 import snoowrap from "snoowrap";
+import Exa from 'exa-js';
 
 // Load environment variables
 dotenv.config();
@@ -18,6 +19,7 @@ app.use(cors()); // Enable CORS
 app.use(express.json());
 
 const parser = new Parser();
+const exa = new Exa(process.env.EXA_API_KEY);
 
 // List of RSS feeds
 const rssFeeds = [
@@ -176,6 +178,8 @@ const reddit = new snoowrap({
   password: process.env.REDDIT_PASSWORD!
 });
 
+const data: NewsItem[] = [];
+
 async function fetchRedditNews(subreddit: string, limit: number = 10) {
   try {
       const posts = await reddit.getSubreddit(subreddit).getTop({ time: "day", limit });
@@ -200,6 +204,25 @@ async function newsData(){
   const anime_tittiesSubredditRes = await fetchRedditNews("anime_titties");
   const worldnewsSubredditRes = await fetchRedditNews("worldnews");
 
+
+    try {
+        const response = await exa.searchAndContents(
+            newsSubredditRes[0].title + " This is a news headline, curate it to add more information about the same headline containing all facts and then make it into a human readable format that anyone could read in only 200 words!",
+            {
+               useAutoprompt: true,
+               startPublishedDate: "2025-01-25",
+               type: "auto",
+               text: true,
+               livecrawl: "always"
+           }
+       );
+
+       console.log("Here is the exa ai response: ", response.results)
+    } catch (error) {
+        console.error("Error doing exa search:", error);
+    }
+ 
+
   console.log("News from Reddit r/news", newsSubredditRes)
   console.log("News from Reddit r/indianews", indiaNewsSubredditRes)
   console.log("News from Reddit r/anime_titties", anime_tittiesSubredditRes)
@@ -216,9 +239,6 @@ async function techNews(){
   console.log("News from Reddit r/artificial", artificialSubredditRes)
   console.log("News from Reddit r/startups", startupsSubredditRes)
   console.log("News from Reddit r/VCinvesting", VCinvestingSubredditRes)
-
-
-
 }
 
 newsData();
